@@ -1,18 +1,18 @@
 import os
 import zipfile
-import fitz  # PyMuPDF 用於處理 PDF
+import fitz  # PyMuPDF
 import threading
 import io
-from tkinter import filedialog, messagebox, Listbox, Scrollbar, MULTIPLE, END
+from tkinter import filedialog, messagebox, Canvas, Scrollbar
 import ttkbootstrap as tb
 from ttkbootstrap.constants import *
 from PIL import Image, ImageTk
 
-APP_NAME = "文件圖片萃取與預覽工具 (Windows 獨立版)"
+APP_NAME = "文件圖片網格預覽與萃取工具 (Windows 獨立版)"
 
 input_file_path = ""
-extracted_images_cache = []  
-photo_image_ref = None       
+# 存放圖片物件：{'filename': str, 'bytes': bytes, 'thumb': ImageTk.PhotoImage, 'var': tb.BooleanVar}
+gallery_items = []
 
 # ==================================
 # 選擇來源檔案
@@ -35,33 +35,38 @@ def choose_file():
     input_file_path = file_path
     file_name = os.path.basename(file_path)
     source_label.config(text=f"來源檔案：{file_name}")
-    listbox.delete(0, END)
-    extracted_images_cache.clear()
-    preview_label.config(image="", text="尚未選擇圖片預覽")
+    clear_gallery()
 
 # ==================================
-# 核心解析與進度控制
+# 清理畫廊介面
+# ==================================
+def clear_gallery():
+    global gallery_items
+    for widget in grid_container.winfo_children():
+        widget.destroy()
+    gallery_items.clear()
+    count_label.config(text="共 0 張圖片 (已勾選: 0)")
+
+# ==================================
+# 核心萃取並直接生成相簿預覽
 # ==================================
 def start_scan_thread():
     if not input_file_path:
         messagebox.showwarning("提醒", "請先選擇來源檔案！")
         return
     
-    listbox.delete(0, END)
-    extracted_images_cache.clear()
-    preview_label.config(image="", text="尚未選擇圖片預覽")
-    
-    threading.Thread(target=scan_and_extract_images, daemon=True).start()
+    clear_gallery()
+    threading.Thread(target=scan_and_render_gallery, daemon=True).start()
 
-def scan_and_extract_images():
-    global extracted_images_cache
+def scan_and_render_gallery():
+    global gallery_items
     ext = os.path.splitext(input_file_path)[1].lower()
     
-    status_label.config(text="正在分析檔案結構...")
+    status_label.config(text="正在分析檔案...")
     progress['value'] = 0
     window.update_idletasks()
 
-    temp_list = []
+    extracted_raw = []
 
     try:
         # 1. 處理 Word (.docx) 與 PowerPoint (.pptx)
@@ -71,7 +76,7 @@ def scan_and_extract_images():
                 total_files = len(media_files)
                 
                 if total_files == 0:
-                    messagebox.showinfo("提示", "在此檔案中沒有找到任何圖片。")
+                    messagebox.showinfo("提示", "此檔案中未找到任何圖片。")
                     status_label.config(text="待命中")
                     return
 
@@ -79,18 +84,14 @@ def scan_and_extract_images():
                     filename = os.path.basename(file_info)
                     img_bytes = zip_ref.read(file_info)
                     
-                    percent = int(((idx + 1) / total_files) * 100)
+                    percent = int(((idx + 1) / total_files) * 50)  # 前50%進度
                     progress['value'] = percent
-                    status_label.config(text=f"正在萃取圖片... ({percent}%)")
+                    status_label.config(text=f"讀取圖片中... ({percent * 2}%)")
                     window.update_idletasks()
 
                     try:
                         img = Image.open(io.BytesIO(img_bytes))
-                        temp_list.append({
-                            'filename': filename,
-                            'bytes': img_bytes,
-                            'img': img
-                        })
+                        extracted_raw.append((filename, img_bytes, img))
                     except:
                         continue
 
@@ -98,7 +99,6 @@ def scan_and_extract_images():
         elif ext == '.pdf':
             doc = fitz.open(input_file_path)
             total_pages = len(doc)
-            
             all_images_info = []
             for p_idx in range(total_pages):
                 page = doc[p_idx]
@@ -107,7 +107,7 @@ def scan_and_extract_images():
             
             total_images = len(all_images_info)
             if total_images == 0:
-                messagebox.showinfo("提示", "在此 PDF 中沒有找到任何圖片。")
+                messagebox.showinfo("提示", "此 PDF 中未找到任何圖片。")
                 status_label.config(text="待命中")
                 doc.close()
                 return
@@ -118,64 +118,99 @@ def scan_and_extract_images():
                 image_ext = base_image["ext"]
                 filename = f"p{p_idx + 1}_img{img_idx + 1}.{image_ext}"
 
-                percent = int(((idx + 1) / total_images) * 100)
+                percent = int(((idx + 1) / total_images) * 50)
                 progress['value'] = percent
-                status_label.config(text=f"正在萃取 PDF 圖片... ({percent}%)")
+                status_label.config(text=f"讀取圖片中... ({percent * 2}%)")
                 window.update_idletasks()
 
                 try:
                     img = Image.open(io.BytesIO(img_bytes))
-                    temp_list.append({
-                        'filename': filename,
-                        'bytes': img_bytes,
-                        'img': img
-                    })
+                    extracted_raw.append((filename, img_bytes, img))
                 except:
                     continue
             doc.close()
 
-        extracted_images_cache = temp_list
+        # 3. 渲染到網格預覽區 (後 50% 進度)
+        total_raw = len(extracted_raw)
+        status_label.config(text="正在生成圖片預覽網格...")
         
-        for item in extracted_images_cache:
-            listbox.insert(END, item['filename'])
-        
-        status_label.config(text=f"解析完成！共找到 {len(extracted_images_cache)} 張圖片")
-        messagebox.showinfo("完成", f"成功萃取 {len(extracted_images_cache)} 張圖片！請在清單中預覽並選擇儲存。")
+        # 4 欄網格排列
+        COLUMNS = 4
+        for idx, (filename, img_bytes, img) in enumerate(extracted_raw):
+            thumb = img.copy()
+            thumb.thumbnail((140, 140))
+            photo_thumb = ImageTk.PhotoImage(thumb)
+
+            row = idx // COLUMNS
+            col = idx % COLUMNS
+
+            # 建立單張圖片卡片框架
+            card = tb.Frame(grid_container, bootstyle="secondary", padding=5)
+            card.grid(row=row, column=col, padx=8, pady=8, sticky="nsew")
+
+            # 縮圖展示
+            img_lbl = tb.Label(card, image=photo_thumb, anchor="center")
+            img_lbl.image = photo_thumb  # 保持引用防回收
+            img_lbl.pack(pady=2)
+
+            # 勾選框變數
+            check_var = tb.BooleanVar(value=True)  # 預設全選
+            chk = tb.Checkbutton(
+                card,
+                text=filename[:15] + "..." if len(filename) > 15 else filename,
+                variable=check_var,
+                bootstyle="round-toggle",
+                command=update_check_count
+            )
+            chk.pack(pady=2)
+
+            gallery_items.append({
+                'filename': filename,
+                'bytes': img_bytes,
+                'thumb': photo_thumb,
+                'var': check_var
+            })
+
+            cur_progress = 50 + int(((idx + 1) / total_raw) * 50)
+            progress['value'] = cur_progress
+            window.update_idletasks()
+
+        progress['value'] = 100
+        update_check_count()
+        status_label.config(text=f"已成功載入 {len(gallery_items)} 張圖片！")
 
     except Exception as e:
         status_label.config(text="解析失敗")
         messagebox.showerror("錯誤", f"過程發生錯誤：\n{str(e)}")
 
 # ==================================
-# 點擊清單項目以預覽圖片
+# 全選 / 取消全選 / 統計更新
 # ==================================
-def on_select_item(event):
-    global photo_image_ref
-    selection = listbox.curselection()
-    if not selection:
-        return
-    
-    index = selection[0]
-    if index < len(extracted_images_cache):
-        img_data = extracted_images_cache[index]
-        img = img_data['img'].copy()
-        
-        img.thumbnail((250, 250))
-        photo_image_ref = ImageTk.PhotoImage(img)
-        
-        preview_label.config(image=photo_image_ref, text="")
+def select_all():
+    for item in gallery_items:
+        item['var'].set(True)
+    update_check_count()
+
+def deselect_all():
+    for item in gallery_items:
+        item['var'].set(False)
+    update_check_count()
+
+def update_check_count():
+    selected_count = sum(1 for item in gallery_items if item['var'].get())
+    count_label.config(text=f"共 {len(gallery_items)} 張圖片 (已勾選: {selected_count})")
 
 # ==================================
-# 儲存選定或全部的圖片
+# 儲存勾選的圖片
 # ==================================
 def save_selected_images():
-    if not extracted_images_cache:
+    if not gallery_items:
         messagebox.showwarning("提醒", "目前沒有可儲存的圖片！")
         return
-    
-    selection = listbox.curselection()
-    if not selection:
-        messagebox.showwarning("提醒", "請先在清單中選擇要下載的圖片（可按住 Ctrl 多選）！")
+
+    selected = [item for item in gallery_items if item['var'].get()]
+    if not selected:
+        messagebox.showwarning("提醒", "尚未勾選任何圖片！")
         return
 
     output_folder = filedialog.askdirectory(title="選擇儲存資料夾")
@@ -183,10 +218,8 @@ def save_selected_images():
         return
 
     saved_count = 0
-    for idx in selection:
-        item = extracted_images_cache[idx]
+    for item in selected:
         target_path = os.path.join(output_folder, item['filename'])
-        
         base, ext = os.path.splitext(item['filename'])
         counter = 1
         while os.path.exists(target_path):
@@ -197,61 +230,78 @@ def save_selected_images():
             f.write(item['bytes'])
         saved_count += 1
 
-    messagebox.showinfo("成功", f"已成功儲存 {saved_count} 張圖片至：\n{output_folder}")
+    messagebox.showinfo("儲存完成", f"已成功儲存 {saved_count} 張圖片至：\n{output_folder}")
 
 # ==================================
-# UI 介面配置
+# UI 介面設計
 # ==================================
 window = tb.Window(
     title=APP_NAME,
     themename="darkly",
-    size=(850, 650)
+    size=(950, 750)
 )
-window.resizable(False, False)
 
-title_label = tb.Label(window, text="文件圖片萃取與預覽工具", font=("Microsoft JhengHei UI", 16, "bold"))
+title_label = tb.Label(window, text="文件圖片網格預覽與萃取工具", font=("Microsoft JhengHei UI", 16, "bold"))
 title_label.pack(pady=10)
 
+# 上方操作區
 top_frame = tb.Frame(window)
 top_frame.pack(pady=5)
 
-file_btn = tb.Button(top_frame, text="1. 選擇檔案 (PDF/DOCX/PPTX)", bootstyle="primary", command=choose_file, width=30)
+file_btn = tb.Button(top_frame, text="1. 選擇檔案 (PDF/DOCX/PPTX)", bootstyle="primary", command=choose_file, width=28)
 file_btn.pack(side=LEFT, padx=5)
 
-scan_btn = tb.Button(top_frame, text="開始掃描與萃取", bootstyle="info", command=start_scan_thread, width=20)
+scan_btn = tb.Button(top_frame, text="2. 開始萃取並顯示圖片", bootstyle="info", command=start_scan_thread, width=22)
 scan_btn.pack(side=LEFT, padx=5)
 
 source_label = tb.Label(window, text="尚未選擇來源檔案", font=("Microsoft JhengHei UI", 9), bootstyle="secondary")
 source_label.pack(pady=2)
 
 status_label = tb.Label(window, text="待命中", font=("Microsoft JhengHei UI", 10))
-status_label.pack(pady=5)
+status_label.pack(pady=2)
 
-progress = tb.Progressbar(window, length=780, mode="determinate", bootstyle="success-striped")
+progress = tb.Progressbar(window, length=900, mode="determinate", bootstyle="success-striped")
 progress.pack(pady=5)
 
-main_frame = tb.Frame(window)
-main_frame.pack(pady=10, fill=BOTH, expand=True, padx=20)
+# 工具列：全選、取消全選、圖片數量統計
+toolbar = tb.Frame(window)
+toolbar.pack(fill=X, padx=25, pady=5)
 
-list_frame = tb.Labelframe(main_frame, text=" 萃取出的圖片清單 (可按 Ctrl 多選) ", padding=10)
-list_frame.pack(side=LEFT, fill=BOTH, expand=True, padx=(0, 10))
+select_all_btn = tb.Button(toolbar, text="全選", bootstyle="outline-secondary", command=select_all, width=8)
+select_all_btn.pack(side=LEFT, padx=3)
 
-listbox = Listbox(list_frame, selectmode=MULTIPLE, font=("Microsoft JhengHei UI", 10), bg="#2b3e50", fg="white")
-listbox.pack(side=LEFT, fill=BOTH, expand=True)
-listbox.bind('<<ListboxSelect>>', on_select_item)
+deselect_all_btn = tb.Button(toolbar, text="取消全選", bootstyle="outline-secondary", command=deselect_all, width=10)
+deselect_all_btn.pack(side=LEFT, padx=3)
 
-scrollbar = Scrollbar(list_frame, orient="vertical", command=listbox.yview)
+count_label = tb.Label(toolbar, text="共 0 張圖片 (已勾選: 0)", font=("Microsoft JhengHei UI", 10))
+count_label.pack(side=RIGHT, padx=5)
+
+# 中間可滾動的網格相簿檢視區 (Canvas + Frame)
+gallery_outer_frame = tb.Frame(window)
+gallery_outer_frame.pack(fill=BOTH, expand=True, padx=25, pady=5)
+
+canvas = Canvas(gallery_outer_frame, bg="#222", highlightthickness=0)
+scrollbar = Scrollbar(gallery_outer_frame, orient="vertical", command=canvas.yview)
+
+grid_container = tb.Frame(canvas)
+grid_container.bind(
+    "<Configure>",
+    lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+)
+
+canvas.create_window((0, 0), window=grid_container, anchor="nw")
+canvas.configure(yscrollcommand=scrollbar.set)
+
+# 支援滑鼠滾輪滾動檢視區
+def _on_mousewheel(event):
+    canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+canvas.bind_all("<MouseWheel>", _on_mousewheel)
+
+canvas.pack(side=LEFT, fill=BOTH, expand=True)
 scrollbar.pack(side=RIGHT, fill=Y)
-listbox.config(yscrollcommand=scrollbar.set)
 
-preview_frame = tb.Labelframe(main_frame, text=" 圖片預覽 ", padding=10)
-preview_frame.pack(side=RIGHT, fill=BOTH, padx=(10, 0))
-
-# 修正處：移除不支援的 height 屬性
-preview_label = tb.Label(preview_frame, text="尚未選擇圖片預覽", width=30, anchor="center")
-preview_label.pack(fill=BOTH, expand=True)
-
-save_btn = tb.Button(window, text="2. 儲存勾選/選定的圖片", bootstyle="success", command=save_selected_images, width=35)
+# 下方儲存按鈕
+save_btn = tb.Button(window, text="3. 儲存所有已勾選的圖片", bootstyle="success", command=save_selected_images, width=35)
 save_btn.pack(pady=15)
 
 window.mainloop()
