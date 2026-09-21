@@ -1,3 +1,4 @@
 ttkbootstrap
 PyMuPDF
+Pillow
 pyinstaller
