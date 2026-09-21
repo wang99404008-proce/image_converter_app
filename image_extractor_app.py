@@ -11,8 +11,8 @@ from PIL import Image, ImageTk
 APP_NAME = "文件圖片萃取與預覽工具 (Windows 獨立版)"
 
 input_file_path = ""
-extracted_images_cache = []  # 暫存萃取出來的圖片資料 {'filename': ..., 'bytes': ..., 'img': ...}
-photo_image_ref = None       # 防止圖片被記憶體回收
+extracted_images_cache = []  
+photo_image_ref = None       
 
 # ==================================
 # 選擇來源檔案
@@ -47,7 +47,6 @@ def start_scan_thread():
         messagebox.showwarning("提醒", "請先選擇來源檔案！")
         return
     
-    # 清空舊資料
     listbox.delete(0, END)
     extracted_images_cache.clear()
     preview_label.config(image="", text="尚未選擇圖片預覽")
@@ -80,7 +79,6 @@ def scan_and_extract_images():
                     filename = os.path.basename(file_info)
                     img_bytes = zip_ref.read(file_info)
                     
-                    # 計算百分比
                     percent = int(((idx + 1) / total_files) * 100)
                     progress['value'] = percent
                     status_label.config(text=f"正在萃取圖片... ({percent}%)")
@@ -101,7 +99,6 @@ def scan_and_extract_images():
             doc = fitz.open(input_file_path)
             total_pages = len(doc)
             
-            # 先計算總圖片數以便算進度
             all_images_info = []
             for p_idx in range(total_pages):
                 page = doc[p_idx]
@@ -139,12 +136,11 @@ def scan_and_extract_images():
 
         extracted_images_cache = temp_list
         
-        # 將結果顯示到介面清單
         for item in extracted_images_cache:
             listbox.insert(END, item['filename'])
         
-        status_label.config(text=f"解析完成！共找到 {len(extracted_images_cache)} 張圖片，請在下方勾選或選擇下載。")
-        messagebox.成功 = messagebox.showinfo("完成", f"成功萃取 {len(extracted_images_cache)} 張圖片！請在清單中預覽並選擇儲存。")
+        status_label.config(text=f"解析完成！共找到 {len(extracted_images_cache)} 張圖片")
+        messagebox.showinfo("完成", f"成功萃取 {len(extracted_images_cache)} 張圖片！請在清單中預覽並選擇儲存。")
 
     except Exception as e:
         status_label.config(text="解析失敗")
@@ -164,7 +160,6 @@ def on_select_item(event):
         img_data = extracted_images_cache[index]
         img = img_data['img'].copy()
         
-        # 縮放圖片以適應預覽框 (最大 250x250)
         img.thumbnail((250, 250))
         photo_image_ref = ImageTk.PhotoImage(img)
         
@@ -192,7 +187,6 @@ def save_selected_images():
         item = extracted_images_cache[idx]
         target_path = os.path.join(output_folder, item['filename'])
         
-        # 避免檔名重複
         base, ext = os.path.splitext(item['filename'])
         counter = 1
         while os.path.exists(target_path):
@@ -215,32 +209,30 @@ window = tb.Window(
 )
 window.resizable(False, False)
 
-# 標題
 title_label = tb.Label(window, text="文件圖片萃取與預覽工具", font=("Microsoft JhengHei UI", 16, "bold"))
 title_label.pack(pady=10)
 
-# 上方操作區
 top_frame = tb.Frame(window)
 top_frame.pack(pady=5)
 
 file_btn = tb.Button(top_frame, text="1. 選擇檔案 (PDF/DOCX/PPTX)", bootstyle="primary", command=choose_file, width=30)
 file_btn.pack(side=LEFT, padx=5)
 
+scan_btn = tb.Button(top_frame, text="開始掃描與萃取", bootstyle="info", command=start_scan_thread, width=20)
+scan_btn.pack(side=LEFT, padx=5)
+
 source_label = tb.Label(window, text="尚未選擇來源檔案", font=("Microsoft JhengHei UI", 9), bootstyle="secondary")
 source_label.pack(pady=2)
 
-# 進度條與狀態
 status_label = tb.Label(window, text="待命中", font=("Microsoft JhengHei UI", 10))
 status_label.pack(pady=5)
 
 progress = tb.Progressbar(window, length=780, mode="determinate", bootstyle="success-striped")
 progress.pack(pady=5)
 
-# 中間主體區 (左側清單、右側預覽)
 main_frame = tb.Frame(window)
 main_frame.pack(pady=10, fill=BOTH, expand=True, padx=20)
 
-# 左側清單區
 list_frame = tb.Labelframe(main_frame, text=" 萃取出的圖片清單 (可按 Ctrl 多選) ", padding=10)
 list_frame.pack(side=LEFT, fill=BOTH, expand=True, padx=(0, 10))
 
@@ -252,14 +244,13 @@ scrollbar = Scrollbar(list_frame, orient="vertical", command=listbox.yview)
 scrollbar.pack(side=RIGHT, fill=Y)
 listbox.config(yscrollcommand=scrollbar.set)
 
-# 右側預覽區
 preview_frame = tb.Labelframe(main_frame, text=" 圖片預覽 ", padding=10)
 preview_frame.pack(side=RIGHT, fill=BOTH, padx=(10, 0))
 
-preview_label = tb.Label(preview_frame, text="尚未選擇圖片預覽", width=30, height=12, anchor="center")
+# 修正處：移除不支援的 height 屬性
+preview_label = tb.Label(preview_frame, text="尚未選擇圖片預覽", width=30, anchor="center")
 preview_label.pack(fill=BOTH, expand=True)
 
-# 下方儲存按鈕
 save_btn = tb.Button(window, text="2. 儲存勾選/選定的圖片", bootstyle="success", command=save_selected_images, width=35)
 save_btn.pack(pady=15)
 
