@@ -237,7 +237,7 @@ def save_selected_images():
 # ==================================
 window = tb.Window(
     title=APP_NAME,
-    themename="darkly",
+    themename="cosmo",  # 改成亮色主題
     size=(950, 750)
 )
 
