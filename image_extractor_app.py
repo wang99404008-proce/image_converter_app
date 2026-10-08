@@ -302,7 +302,7 @@ path_display_box = Text(drop_frame, height=2, width=105, font=("Consolas", 9), s
 path_display_box.pack(pady=2)
 
 if HAS_DND:
-    windnd.hook_dropfiles(drop_frame, func=dropped_files)
+    windnd.hook_dropfiles(window, func=dropped_files)
 
 status_label = tk.Label(window, text="待命中", font=("Microsoft JhengHei UI", 10, "bold"), bg=COLOR_BG, fg=COLOR_SUCCESS)
 status_label.pack(pady=2)
