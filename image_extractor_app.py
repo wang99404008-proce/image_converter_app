@@ -80,20 +80,17 @@ def choose_output_folder():
     output_path_box.config(state="disabled")
 
 def dropped_files(files):
-    """處理 windnd 拖放進來的檔案路徑（支援繁體中文 cp950 編碼）"""
+    """處理 windnd 拖放進來的檔案路徑（使用 os.fsdecode 完美避開問號與亂碼）"""
     if files:
-        raw_data = files[0]
-        if isinstance(raw_data, bytes):
-            # 優先使用繁體中文 Windows 的 cp950 進行解碼
-            try:
-                file_path = raw_data.decode('cp950')
-            except Exception:
-                try:
-                    file_path = raw_data.decode('utf-8')
-                except Exception:
-                    file_path = raw_data.decode('utf-8', errors='ignore')
-        else:
-            file_path = str(raw_data)
+        raw_path = files[0]
+        try:
+            # os.fsdecode 會自動用系統最佳檔案系統編碼解碼 bytes，絕不會出現問號
+            if isinstance(raw_path, bytes):
+                file_path = os.fsdecode(raw_path)
+            else:
+                file_path = str(raw_path)
+        except Exception:
+            file_path = str(raw_path)
             
         set_input_file(file_path)
 
