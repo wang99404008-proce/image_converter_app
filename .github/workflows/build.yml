@@ -25,7 +25,7 @@ jobs:
 
       - name: Build with PyInstaller
         run: |
-          pyinstaller --onefile --collect-all tkinterdnd2 --name="ImageExtractorPro" image_extractor_app.py
+          pyinstaller --noconsole --onefile --name="ImageExtractorPro" image_extractor_app.py
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
