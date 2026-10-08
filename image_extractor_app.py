@@ -9,14 +9,7 @@ import ttkbootstrap as tb
 from ttkbootstrap.constants import *
 from PIL import Image, ImageTk
 
-# 嘗試載入 tkinterdnd2 支援原生拖放
-try:
-    from tkinterdnd2 import DND_FILES, TkinterDnD
-    HAS_DND = True
-except ImportError:
-    HAS_DND = False
-
-APP_NAME = "文件圖片網格預覽與萃取工具 (莫蘭迪美學版)"
+APP_NAME = "文件圖片網格預覽與萃取工具 (莫蘭迪美學穩定版)"
 
 input_file_path = ""
 output_folder_path = ""
@@ -33,7 +26,7 @@ COLOR_TEXT = "#4A4A4A"       # 文字顏色：柔和深灰
 COLOR_CANVAS = "#2C2F2E"     # 圖片預覽畫布：沉穩墨灰
 
 # ==================================
-# 檔案設定與拖拉處理
+# 檔案設定與選擇處理
 # ==================================
 def set_input_file(file_path):
     global input_file_path
@@ -66,10 +59,6 @@ def choose_file():
     if file_path:
         set_input_file(file_path)
 
-def drop_event(event):
-    file_path = event.data
-    set_input_file(file_path)
-
 def clear_gallery():
     global gallery_items
     for widget in grid_container.winfo_children():
@@ -79,7 +68,7 @@ def clear_gallery():
 
 def start_scan_thread():
     if not input_file_path:
-        messagebox.showwarning("提醒", "請先選擇或拖入來源檔案！")
+        messagebox.showwarning("提醒", "請先選擇來源檔案！")
         return
     
     clear_gallery()
@@ -258,22 +247,16 @@ def save_selected_images():
     messagebox.showinfo("儲存完成", f"已成功儲存 {saved_count} 張圖片至：\n{output_folder}")
 
 # ==================================
-# UI 介面設計 (莫蘭迪風格套用)
+# UI 介面設計 (莫蘭迪美學)
 # ==================================
-if HAS_DND:
-    window = TkinterDnD.Tk()
-    window.title(APP_NAME)
-    window.geometry("950x850")
-else:
-    window = tb.Window(title=APP_NAME, themename="cosmo", size=(950, 850))
-
+window = tb.Window(title=APP_NAME, themename="cosmo", size=(950, 850))
 window.configure(bg=COLOR_BG)
 window.resizable(False, False)
 
 title_label = tk.Label(window, text="📄 文件圖片網格預覽與萃取工具 (莫蘭迪美學版)", font=("Microsoft JhengHei UI", 15, "bold"), bg=COLOR_BG, fg="#3E423F")
 title_label.pack(pady=8)
 
-drop_frame = tk.LabelFrame(window, text=" 選擇來源檔案 (可點擊按鈕，或將檔案拖曳至下方框內) ", bg=COLOR_BG, fg="#5A615D", font=("Microsoft JhengHei UI", 9, "bold"), padx=10, pady=10)
+drop_frame = tk.LabelFrame(window, text=" 檔案來源設定 ", bg=COLOR_BG, fg="#5A615D", font=("Microsoft JhengHei UI", 9, "bold"), padx=10, pady=10)
 drop_frame.pack(fill=tk.X, padx=25, pady=5)
 
 top_btn_frame = tk.Frame(drop_frame, bg=COLOR_BG)
@@ -290,10 +273,6 @@ source_label.pack(anchor="w", padx=5, pady=2)
 
 path_display_box = Text(drop_frame, height=2, width=105, font=("Consolas", 9), state="disabled", bg=COLOR_CARD, fg=COLOR_TEXT, bd=1, relief="solid")
 path_display_box.pack(pady=4)
-
-if HAS_DND:
-    path_display_box.drop_target_register(DND_FILES)
-    path_display_box.dnd_bind('<<Drop>>', drop_event)
 
 status_label = tk.Label(window, text="待命中", font=("Microsoft JhengHei UI", 10, "bold"), bg=COLOR_BG, fg=COLOR_SUCCESS)
 status_label.pack(pady=2)
@@ -333,9 +312,8 @@ def _on_mousewheel(event):
 canvas.bind_all("<MouseWheel>", _on_mousewheel)
 
 canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+scrollbar.pack(side=RIGHT, fill=tk.Y)
 
-# 下方輸出與儲存區
 bottom_frame = tk.LabelFrame(window, text=" 儲存輸出設定 ", bg=COLOR_BG, fg="#5A615D", font=("Microsoft JhengHei UI", 9, "bold"), padx=10, pady=10)
 bottom_frame.pack(fill=tk.X, padx=25, pady=5)
 
@@ -345,3 +323,5 @@ save_btn.pack(pady=5)
 tk.Label(bottom_frame, text="最終輸出資料夾完整路徑：", font=("Microsoft JhengHei UI", 9), bg=COLOR_BG, fg="#6C7570").pack(anchor="w", padx=5)
 output_path_box = Text(bottom_frame, height=2, width=105, font=("Consolas", 9), state="disabled", bg=COLOR_CARD, fg=COLOR_TEXT, bd=1, relief="solid")
 output_path_box.pack(pady=4)
+
+window.mainloop()
