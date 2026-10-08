@@ -73,11 +73,32 @@ def choose_output_folder():
     output_path_box.config(state="disabled")
 
 def clear_gallery():
+    """清空預覽網格中的所有圖片與選項"""
     global gallery_items
     for widget in grid_container.winfo_children():
         widget.destroy()
     gallery_items.clear()
     count_label.config(text="共 0 張圖片 (已勾選: 0)")
+    status_label.config(text="待命中")
+    progress['value'] = 0
+
+def reset_app():
+    """清空所有狀態（來源檔案、輸出路徑與預覽畫面）"""
+    global input_file_path, output_folder_path
+    input_file_path = ""
+    output_folder_path = ""
+    
+    source_label.config(text="尚未選擇來源檔案")
+    
+    path_display_box.config(state="normal")
+    path_display_box.delete("1.0", tk.END)
+    path_display_box.config(state="disabled")
+    
+    output_path_box.config(state="normal")
+    output_path_box.delete("1.0", tk.END)
+    output_path_box.config(state="disabled")
+    
+    clear_gallery()
 
 def start_scan_thread():
     if not input_file_path:
@@ -262,7 +283,7 @@ def save_selected_images():
 # ==================================
 # UI 介面設計
 # ==================================
-window = tb.Window(title=APP_NAME, themename="cosmo", size=(950, 930))
+window = tb.Window(title=APP_NAME, themename="cosmo", size=(950, 950))
 window.configure(bg=COLOR_BG)
 window.resizable(False, False)
 
@@ -276,11 +297,14 @@ drop_frame.pack(fill=tk.X, padx=25, pady=4)
 top_btn_frame = tk.Frame(drop_frame, bg=COLOR_DROP_BG)
 top_btn_frame.pack(fill=tk.X, pady=2)
 
-file_btn = tk.Button(top_btn_frame, text="📁 點擊按鈕選擇檔案 (PDF/Word/PPT)", bg=COLOR_CARD, fg=COLOR_TEXT, font=("Microsoft JhengHei UI", 10), relief="groove", command=choose_file, width=32)
-file_btn.pack(side=tk.LEFT, padx=5)
+file_btn = tk.Button(top_btn_frame, text="📁 選擇檔案", bg=COLOR_CARD, fg=COLOR_TEXT, font=("Microsoft JhengHei UI", 10), relief="groove", command=choose_file, width=15)
+file_btn.pack(side=tk.LEFT, padx=3)
 
-scan_btn = tk.Button(top_btn_frame, text="🚀 開始萃取並顯示圖片網格", bg=COLOR_PRIMARY, fg="#FFFFFF", font=("Microsoft JhengHei UI", 10, "bold"), relief="flat", command=start_scan_thread, width=28)
-scan_btn.pack(side=tk.RIGHT, padx=5)
+scan_btn = tk.Button(top_btn_frame, text="🚀 開始萃取", bg=COLOR_PRIMARY, fg="#FFFFFF", font=("Microsoft JhengHei UI", 10, "bold"), relief="flat", command=start_scan_thread, width=18)
+scan_btn.pack(side=tk.LEFT, padx=3)
+
+reset_btn = tk.Button(top_btn_frame, text="🗑️ 全部重置", bg="#C27878", fg="#FFFFFF", font=("Microsoft JhengHei UI", 10, "bold"), relief="flat", command=reset_app, width=15)
+reset_btn.pack(side=tk.RIGHT, padx=3)
 
 source_label = tk.Label(drop_frame, text="尚未選擇來源檔案", font=("Microsoft JhengHei UI", 9, "bold"), bg=COLOR_DROP_BG, fg="#5A6560")
 source_label.pack(anchor="w", padx=5, pady=4)
@@ -294,7 +318,7 @@ status_label.pack(pady=2)
 progress = tb.Progressbar(window, length=900, mode="determinate", bootstyle="secondary")
 progress.pack(pady=2)
 
-# 工具列：全選、取消全選、圖片數量統計
+# 工具列：全選、取消全選、清除預覽圖片按鈕、圖片數量統計
 toolbar = tk.Frame(window, bg=COLOR_BG)
 toolbar.pack(fill=tk.X, padx=25, pady=2)
 
@@ -303,6 +327,9 @@ select_all_btn.pack(side=tk.LEFT, padx=3)
 
 deselect_all_btn = tk.Button(toolbar, text="取消全選", bg=COLOR_CARD, fg=COLOR_TEXT, relief="groove", command=deselect_all, width=10)
 deselect_all_btn.pack(side=tk.LEFT, padx=3)
+
+clear_grid_btn = tk.Button(toolbar, text="🗑️ 清除預覽圖片", bg=COLOR_CARD, fg="#A94442", relief="groove", command=clear_gallery, width=14)
+clear_grid_btn.pack(side=tk.LEFT, padx=3)
 
 count_label = tk.Label(toolbar, text="共 0 張圖片 (已勾選: 0)", font=("Microsoft JhengHei UI", 10), bg=COLOR_BG, fg=COLOR_TEXT)
 count_label.pack(side=tk.RIGHT, padx=5)
