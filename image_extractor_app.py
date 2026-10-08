@@ -9,7 +9,14 @@ import ttkbootstrap as tb
 from ttkbootstrap.constants import *
 from PIL import Image, ImageTk
 
-APP_NAME = "文件圖片網格預覽與萃取工具 (莫蘭迪美學穩定版)"
+# 引入 Windows 專用且極度穩定的拖放套件
+try:
+    import windnd
+    HAS_DND = True
+except ImportError:
+    HAS_DND = False
+
+APP_NAME = "文件圖片網格預覽與萃取工具 (莫蘭迪自選路徑版)"
 
 input_file_path = ""
 output_folder_path = ""
@@ -20,13 +27,14 @@ gallery_items = []
 # ==================================
 COLOR_BG = "#F4F3EF"         # 整體視窗背景：溫潤燕麥灰
 COLOR_CARD = "#EAE8E2"       # 卡片/區塊背景：柔和象牙灰
+COLOR_DROP_BG = "#E3E1DA"    # 拖拉面板背景：微深燕麥灰
 COLOR_PRIMARY = "#7D8C82"    # 主要按鈕/點綴：莫蘭迪霧綠
 COLOR_SUCCESS = "#6E8387"    # 成功/執行：莫蘭迪灰藍
 COLOR_TEXT = "#4A4A4A"       # 文字顏色：柔和深灰
 COLOR_CANVAS = "#2C2F2E"     # 圖片預覽畫布：沉穩墨灰
 
 # ==================================
-# 檔案設定與選擇處理
+# 檔案與路徑設定處理
 # ==================================
 def set_input_file(file_path):
     global input_file_path
@@ -36,7 +44,7 @@ def set_input_file(file_path):
     input_file_path = file_path
     file_name = os.path.basename(file_path)
     
-    source_label.config(text=f"來源檔案：{file_name}")
+    source_label.config(text=f"已載入來源檔案：{file_name}")
     
     path_display_box.config(state="normal")
     path_display_box.delete("1.0", tk.END)
@@ -59,6 +67,24 @@ def choose_file():
     if file_path:
         set_input_file(file_path)
 
+def choose_output_folder():
+    global output_folder_path
+    folder_path = filedialog.askdirectory(title="選擇輸出儲存資料夾")
+    if not folder_path:
+        return
+    output_folder_path = folder_path
+    
+    output_path_box.config(state="normal")
+    output_path_box.delete("1.0", tk.END)
+    output_path_box.insert(tk.END, folder_path)
+    output_path_box.config(state="disabled")
+
+def dropped_files(files):
+    """處理 windnd 拖放進來的檔案路徑"""
+    if files:
+        file_path = files[0].decode('utf-8') if isinstance(files[0], bytes) else files[0]
+        set_input_file(file_path)
+
 def clear_gallery():
     global gallery_items
     for widget in grid_container.winfo_children():
@@ -68,7 +94,7 @@ def clear_gallery():
 
 def start_scan_thread():
     if not input_file_path:
-        messagebox.showwarning("提醒", "請先選擇來源檔案！")
+        messagebox.showwarning("提醒", "請先選擇或拖入來源檔案！")
         return
     
     clear_gallery()
@@ -221,67 +247,73 @@ def save_selected_images():
         messagebox.showwarning("提醒", "尚未勾選任何圖片！")
         return
 
-    output_folder = filedialog.askdirectory(title="選擇儲存資料夾")
-    if not output_folder:
-        return
-    
-    output_folder_path = output_folder
-    output_path_box.config(state="normal")
-    output_path_box.delete("1.0", tk.END)
-    output_path_box.insert(tk.END, output_folder)
-    output_path_box.config(state="disabled")
+    # 若使用者尚未點擊按鈕選擇輸出資料夾，則在點擊儲存時自動彈出選擇
+    if not output_folder_path:
+        folder_path = filedialog.askdirectory(title="選擇輸出儲存資料夾")
+        if not folder_path:
+            return
+        output_folder_path = folder_path
+        output_path_box.config(state="normal")
+        output_path_box.delete("1.0", tk.END)
+        output_path_box.insert(tk.END, folder_path)
+        output_path_box.config(state="disabled")
 
     saved_count = 0
     for item in selected:
-        target_path = os.path.join(output_folder, item['filename'])
+        target_path = os.path.join(output_folder_path, item['filename'])
         base, ext = os.path.splitext(item['filename'])
         counter = 1
         while os.path.exists(target_path):
-            target_path = os.path.join(output_folder, f"{base}_{counter}{ext}")
+            target_path = os.path.join(output_folder_path, f"{base}_{counter}{ext}")
             counter += 1
 
         with open(target_path, 'wb') as f:
             f.write(item['bytes'])
         saved_count += 1
 
-    messagebox.showinfo("儲存完成", f"已成功儲存 {saved_count} 張圖片至：\n{output_folder}")
+    messagebox.showinfo("儲存完成", f"已成功儲存 {saved_count} 張圖片至：\n{output_folder_path}")
 
 # ==================================
-# UI 介面設計 (莫蘭迪美學)
+# UI 介面設計 (莫蘭迪美學 + 拖拉面板 + 自選路徑)
 # ==================================
-window = tb.Window(title=APP_NAME, themename="cosmo", size=(950, 850))
+window = tb.Window(title=APP_NAME, themename="cosmo", size=(950, 910))
 window.configure(bg=COLOR_BG)
 window.resizable(False, False)
 
 title_label = tk.Label(window, text="📄 文件圖片網格預覽與萃取工具 (莫蘭迪美學版)", font=("Microsoft JhengHei UI", 15, "bold"), bg=COLOR_BG, fg="#3E423F")
-title_label.pack(pady=8)
+title_label.pack(pady=6)
 
-drop_frame = tk.LabelFrame(window, text=" 檔案來源設定 ", bg=COLOR_BG, fg="#5A615D", font=("Microsoft JhengHei UI", 9, "bold"), padx=10, pady=10)
-drop_frame.pack(fill=tk.X, padx=25, pady=5)
+# 1. 檔案拖拉面板區 (Drop Zone)
+drop_frame = tk.LabelFrame(window, text=" 📥 檔案拖拉面板區 (可將 PDF / Word / PPT 檔案直接拖曳至此框內) ", bg=COLOR_DROP_BG, fg="#4A524E", font=("Microsoft JhengHei UI", 9, "bold"), padx=12, pady=10)
+drop_frame.pack(fill=tk.X, padx=25, pady=4)
 
-top_btn_frame = tk.Frame(drop_frame, bg=COLOR_BG)
+top_btn_frame = tk.Frame(drop_frame, bg=COLOR_DROP_BG)
 top_btn_frame.pack(fill=tk.X, pady=2)
 
-file_btn = tk.Button(top_btn_frame, text="📁 點擊選擇檔案 (PDF/DOCX/PPTX)", bg=COLOR_CARD, fg=COLOR_TEXT, font=("Microsoft JhengHei UI", 10), relief="groove", command=choose_file, width=32)
+file_btn = tk.Button(top_btn_frame, text="📁 點擊按鈕選擇檔案", bg=COLOR_CARD, fg=COLOR_TEXT, font=("Microsoft JhengHei UI", 10), relief="groove", command=choose_file, width=25)
 file_btn.pack(side=tk.LEFT, padx=5)
 
 scan_btn = tk.Button(top_btn_frame, text="🚀 開始萃取並顯示圖片網格", bg=COLOR_PRIMARY, fg="#FFFFFF", font=("Microsoft JhengHei UI", 10, "bold"), relief="flat", command=start_scan_thread, width=28)
 scan_btn.pack(side=tk.RIGHT, padx=5)
 
-source_label = tk.Label(drop_frame, text="尚未選擇來源檔案", font=("Microsoft JhengHei UI", 9), bg=COLOR_BG, fg="#6C7570")
-source_label.pack(anchor="w", padx=5, pady=2)
+source_label = tk.Label(drop_frame, text="尚未選擇或拖入來源檔案", font=("Microsoft JhengHei UI", 9, "bold"), bg=COLOR_DROP_BG, fg="#5A6560")
+source_label.pack(anchor="w", padx=5, pady=4)
 
 path_display_box = Text(drop_frame, height=2, width=105, font=("Consolas", 9), state="disabled", bg=COLOR_CARD, fg=COLOR_TEXT, bd=1, relief="solid")
-path_display_box.pack(pady=4)
+path_display_box.pack(pady=2)
+
+if HAS_DND:
+    windnd.hook_drop(drop_frame, dropped_files)
 
 status_label = tk.Label(window, text="待命中", font=("Microsoft JhengHei UI", 10, "bold"), bg=COLOR_BG, fg=COLOR_SUCCESS)
 status_label.pack(pady=2)
 
 progress = tb.Progressbar(window, length=900, mode="determinate", bootstyle="secondary")
-progress.pack(pady=3)
+progress.pack(pady=2)
 
+# 工具列：全選、取消全選、圖片數量統計
 toolbar = tk.Frame(window, bg=COLOR_BG)
-toolbar.pack(fill=tk.X, padx=25, pady=3)
+toolbar.pack(fill=tk.X, padx=25, pady=2)
 
 select_all_btn = tk.Button(toolbar, text="全選", bg=COLOR_CARD, fg=COLOR_TEXT, relief="groove", command=select_all, width=8)
 select_all_btn.pack(side=tk.LEFT, padx=3)
@@ -292,8 +324,9 @@ deselect_all_btn.pack(side=tk.LEFT, padx=3)
 count_label = tk.Label(toolbar, text="共 0 張圖片 (已勾選: 0)", font=("Microsoft JhengHei UI", 10), bg=COLOR_BG, fg=COLOR_TEXT)
 count_label.pack(side=tk.RIGHT, padx=5)
 
+# 2. 中間可滾動的網格相簿檢視區
 gallery_outer_frame = tk.Frame(window, bg=COLOR_BG)
-gallery_outer_frame.pack(fill=tk.BOTH, expand=True, padx=25, pady=5)
+gallery_outer_frame.pack(fill=tk.BOTH, expand=True, padx=25, pady=4)
 
 canvas = Canvas(gallery_outer_frame, bg=COLOR_CANVAS, highlightthickness=0)
 scrollbar = Scrollbar(gallery_outer_frame, orient="vertical", command=canvas.yview)
@@ -312,16 +345,23 @@ def _on_mousewheel(event):
 canvas.bind_all("<MouseWheel>", _on_mousewheel)
 
 canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-scrollbar.pack(side=RIGHT, fill=tk.Y)
+scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
-bottom_frame = tk.LabelFrame(window, text=" 儲存輸出設定 ", bg=COLOR_BG, fg="#5A615D", font=("Microsoft JhengHei UI", 9, "bold"), padx=10, pady=10)
-bottom_frame.pack(fill=tk.X, padx=25, pady=5)
+# 3. 下方輸出位置與儲存設定區
+bottom_frame = tk.LabelFrame(window, text=" 儲存與輸出位置設定 ", bg=COLOR_BG, fg="#5A615D", font=("Microsoft JhengHei UI", 9, "bold"), padx=10, pady=8)
+bottom_frame.pack(fill=tk.X, padx=25, pady=4)
 
-save_btn = tk.Button(bottom_frame, text="💾 儲存所有已勾選的圖片", bg=COLOR_SUCCESS, fg="#FFFFFF", font=("Microsoft JhengHei UI", 10, "bold"), relief="flat", command=save_selected_images, width=32)
-save_btn.pack(pady=5)
+out_btn_frame = tk.Frame(bottom_frame, bg=COLOR_BG)
+out_btn_frame.pack(fill=tk.X, pady=2)
 
-tk.Label(bottom_frame, text="最終輸出資料夾完整路徑：", font=("Microsoft JhengHei UI", 9), bg=COLOR_BG, fg="#6C7570").pack(anchor="w", padx=5)
+folder_btn = tk.Button(out_btn_frame, text="📁 選擇輸出資料夾", bg=COLOR_CARD, fg=COLOR_TEXT, font=("Microsoft JhengHei UI", 10), relief="groove", command=choose_output_folder, width=25)
+folder_btn.pack(side=tk.LEFT, padx=5)
+
+save_btn = tk.Button(out_btn_frame, text="💾 儲存所有已勾選的圖片", bg=COLOR_SUCCESS, fg="#FFFFFF", font=("Microsoft JhengHei UI", 10, "bold"), relief="flat", command=save_selected_images, width=28)
+save_btn.pack(side=tk.RIGHT, padx=5)
+
+tk.Label(bottom_frame, text="最終輸出資料夾完整路徑：", font=("Microsoft JhengHei UI", 9), bg=COLOR_BG, fg="#6C7570").pack(anchor="w", padx=5, pady=(4, 0))
 output_path_box = Text(bottom_frame, height=2, width=105, font=("Consolas", 9), state="disabled", bg=COLOR_CARD, fg=COLOR_TEXT, bd=1, relief="solid")
-output_path_box.pack(pady=4)
+output_path_box.pack(pady=2)
 
 window.mainloop()
