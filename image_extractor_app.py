@@ -16,7 +16,7 @@ try:
 except ImportError:
     HAS_DND = False
 
-APP_NAME = "文件圖片網格預覽與萃取工具 (莫蘭迪質感版)"
+APP_NAME = "文件圖片網格預覽與萃取工具 (莫蘭迪美學版)"
 
 input_file_path = ""
 output_folder_path = ""
@@ -25,12 +25,12 @@ gallery_items = []
 # ==================================
 # 莫蘭迪色系色票定義 (Morandi Palette)
 # ==================================
-COLOR_BG = "#F4F3EF"         #整體視窗背景：溫潤燕麥灰
-COLOR_CARD = "#EAE8E2"       #卡片/區塊背景：柔和象牙灰
-COLOR_PRIMARY = "#7D8C82"    #主要按鈕/點綴：莫蘭迪霧綠
-COLOR_SUCCESS = "#6E8387"    #成功/執行：莫蘭迪灰藍
-COLOR_TEXT = "#4A4A4A"       #文字顏色：柔和深灰 (不刺眼)
-COLOR_CANVAS = "#2C2F2E"     #圖片預覽畫布：沉穩墨灰
+COLOR_BG = "#F4F3EF"         # 整體視窗背景：溫潤燕麥灰
+COLOR_CARD = "#EAE8E2"       # 卡片/區塊背景：柔和象牙灰
+COLOR_PRIMARY = "#7D8C82"    # 主要按鈕/點綴：莫蘭迪霧綠
+COLOR_SUCCESS = "#6E8387"    # 成功/執行：莫蘭迪灰藍
+COLOR_TEXT = "#4A4A4A"       # 文字顏色：柔和深灰
+COLOR_CANVAS = "#2C2F2E"     # 圖片預覽畫布：沉穩墨灰
 
 # ==================================
 # 檔案設定與拖拉處理
@@ -167,7 +167,6 @@ def scan_and_render_gallery():
             row = idx // COLUMNS
             col = idx % COLUMNS
 
-            # 莫蘭迪風格卡片容器
             card = tk.Frame(grid_container, bg=COLOR_CARD, bd=1, relief="solid")
             card.grid(row=row, column=col, padx=8, pady=8, sticky="nsew")
 
@@ -271,11 +270,9 @@ else:
 window.configure(bg=COLOR_BG)
 window.resizable(False, False)
 
-# 標題
 title_label = tk.Label(window, text="📄 文件圖片網格預覽與萃取工具 (莫蘭迪美學版)", font=("Microsoft JhengHei UI", 15, "bold"), bg=COLOR_BG, fg="#3E423F")
 title_label.pack(pady=8)
 
-# 上方拖拉與檔案選擇區
 drop_frame = tk.LabelFrame(window, text=" 選擇來源檔案 (可點擊按鈕，或將檔案拖曳至下方框內) ", bg=COLOR_BG, fg="#5A615D", font=("Microsoft JhengHei UI", 9, "bold"), padx=10, pady=10)
 drop_frame.pack(fill=tk.X, padx=25, pady=5)
 
@@ -288,4 +285,60 @@ file_btn.pack(side=tk.LEFT, padx=5)
 scan_btn = tk.Button(top_btn_frame, text="🚀 開始萃取並顯示圖片網格", bg=COLOR_PRIMARY, fg="#FFFFFF", font=("Microsoft JhengHei UI", 10, "bold"), relief="flat", command=start_scan_thread, width=28)
 scan_btn.pack(side=tk.RIGHT, padx=5)
 
-source_label = tk.Label(drop_frame, text="
+source_label = tk.Label(drop_frame, text="尚未選擇來源檔案", font=("Microsoft JhengHei UI", 9), bg=COLOR_BG, fg="#6C7570")
+source_label.pack(anchor="w", padx=5, pady=2)
+
+path_display_box = Text(drop_frame, height=2, width=105, font=("Consolas", 9), state="disabled", bg=COLOR_CARD, fg=COLOR_TEXT, bd=1, relief="solid")
+path_display_box.pack(pady=4)
+
+if HAS_DND:
+    path_display_box.drop_target_register(DND_FILES)
+    path_display_box.dnd_bind('<<Drop>>', drop_event)
+
+status_label = tk.Label(window, text="待命中", font=("Microsoft JhengHei UI", 10, "bold"), bg=COLOR_BG, fg=COLOR_SUCCESS)
+status_label.pack(pady=2)
+
+progress = tb.Progressbar(window, length=900, mode="determinate", bootstyle="secondary")
+progress.pack(pady=3)
+
+toolbar = tk.Frame(window, bg=COLOR_BG)
+toolbar.pack(fill=tk.X, padx=25, pady=3)
+
+select_all_btn = tk.Button(toolbar, text="全選", bg=COLOR_CARD, fg=COLOR_TEXT, relief="groove", command=select_all, width=8)
+select_all_btn.pack(side=tk.LEFT, padx=3)
+
+deselect_all_btn = tk.Button(toolbar, text="取消全選", bg=COLOR_CARD, fg=COLOR_TEXT, relief="groove", command=deselect_all, width=10)
+deselect_all_btn.pack(side=tk.LEFT, padx=3)
+
+count_label = tk.Label(toolbar, text="共 0 張圖片 (已勾選: 0)", font=("Microsoft JhengHei UI", 10), bg=COLOR_BG, fg=COLOR_TEXT)
+count_label.pack(side=tk.RIGHT, padx=5)
+
+gallery_outer_frame = tk.Frame(window, bg=COLOR_BG)
+gallery_outer_frame.pack(fill=tk.BOTH, expand=True, padx=25, pady=5)
+
+canvas = Canvas(gallery_outer_frame, bg=COLOR_CANVAS, highlightthickness=0)
+scrollbar = Scrollbar(gallery_outer_frame, orient="vertical", command=canvas.yview)
+
+grid_container = tk.Frame(canvas, bg=COLOR_CANVAS)
+grid_container.bind(
+    "<Configure>",
+    lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+)
+
+canvas.create_window((0, 0), window=grid_container, anchor="nw")
+canvas.configure(yscrollcommand=scrollbar.set)
+
+def _on_mousewheel(event):
+    canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+canvas.bind_all("<MouseWheel>", _on_mousewheel)
+
+canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+bottom_frame = tk.LabelFrame(window, text=" 儲存輸出設定 ", bg=COLOR_BG, fg="#5A615D", font=("Microsoft JhengHei UI", 9, "bold"), padx=10, pady=10)
+bottom_frame.pack(fill=tk.X, padx=25, pady=5)
+
+save_btn = tk.Button(bottom_frame, text="💾 儲存所有已勾選的圖片", bg=COLOR_SUCCESS, fg="#FFFFFF", font=("Microsoft JhengHei UI", 10, "bold"), relief="flat", command=save_selected_images, width=32)
+save_btn.pack(pady=5)
+
+tb.Label(bottom_frame, text="最終輸出資料夾完整路徑：", font=("Microsoft JhengHei UI", 9), bootstyle="secondary").pack(anchor="w", padx=5
