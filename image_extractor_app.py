@@ -82,6 +82,7 @@ def choose_output_folder():
 def dropped_files(files):
     """處理 windnd 拖放進來的檔案路徑"""
     if files:
+        # 將 bytes 解碼並抓取第一個檔案
         file_path = files[0].decode('utf-8') if isinstance(files[0], bytes) else files[0]
         set_input_file(file_path)
 
@@ -302,66 +303,11 @@ source_label.pack(anchor="w", padx=5, pady=4)
 path_display_box = Text(drop_frame, height=2, width=105, font=("Consolas", 9), state="disabled", bg=COLOR_CARD, fg=COLOR_TEXT, bd=1, relief="solid")
 path_display_box.pack(pady=2)
 
+# 正確註冊 windnd 拖拉事件
 if HAS_DND:
-    windnd.hook_drop(drop_frame, dropped_files)
+    windnd.hook_dropfiles(drop_frame, func=dropped_files)
 
 status_label = tk.Label(window, text="待命中", font=("Microsoft JhengHei UI", 10, "bold"), bg=COLOR_BG, fg=COLOR_SUCCESS)
 status_label.pack(pady=2)
 
-progress = tb.Progressbar(window, length=900, mode="determinate", bootstyle="secondary")
-progress.pack(pady=2)
-
-# 工具列：全選、取消全選、圖片數量統計
-toolbar = tk.Frame(window, bg=COLOR_BG)
-toolbar.pack(fill=tk.X, padx=25, pady=2)
-
-select_all_btn = tk.Button(toolbar, text="全選", bg=COLOR_CARD, fg=COLOR_TEXT, relief="groove", command=select_all, width=8)
-select_all_btn.pack(side=tk.LEFT, padx=3)
-
-deselect_all_btn = tk.Button(toolbar, text="取消全選", bg=COLOR_CARD, fg=COLOR_TEXT, relief="groove", command=deselect_all, width=10)
-deselect_all_btn.pack(side=tk.LEFT, padx=3)
-
-count_label = tk.Label(toolbar, text="共 0 張圖片 (已勾選: 0)", font=("Microsoft JhengHei UI", 10), bg=COLOR_BG, fg=COLOR_TEXT)
-count_label.pack(side=tk.RIGHT, padx=5)
-
-# 2. 中間可滾動的網格相簿檢視區
-gallery_outer_frame = tk.Frame(window, bg=COLOR_BG)
-gallery_outer_frame.pack(fill=tk.BOTH, expand=True, padx=25, pady=4)
-
-canvas = Canvas(gallery_outer_frame, bg=COLOR_CANVAS, highlightthickness=0)
-scrollbar = Scrollbar(gallery_outer_frame, orient="vertical", command=canvas.yview)
-
-grid_container = tk.Frame(canvas, bg=COLOR_CANVAS)
-grid_container.bind(
-    "<Configure>",
-    lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
-)
-
-canvas.create_window((0, 0), window=grid_container, anchor="nw")
-canvas.configure(yscrollcommand=scrollbar.set)
-
-def _on_mousewheel(event):
-    canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
-canvas.bind_all("<MouseWheel>", _on_mousewheel)
-
-canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-
-# 3. 下方輸出位置與儲存設定區
-bottom_frame = tk.LabelFrame(window, text=" 儲存與輸出位置設定 ", bg=COLOR_BG, fg="#5A615D", font=("Microsoft JhengHei UI", 9, "bold"), padx=10, pady=8)
-bottom_frame.pack(fill=tk.X, padx=25, pady=4)
-
-out_btn_frame = tk.Frame(bottom_frame, bg=COLOR_BG)
-out_btn_frame.pack(fill=tk.X, pady=2)
-
-folder_btn = tk.Button(out_btn_frame, text="📁 選擇輸出資料夾", bg=COLOR_CARD, fg=COLOR_TEXT, font=("Microsoft JhengHei UI", 10), relief="groove", command=choose_output_folder, width=25)
-folder_btn.pack(side=tk.LEFT, padx=5)
-
-save_btn = tk.Button(out_btn_frame, text="💾 儲存所有已勾選的圖片", bg=COLOR_SUCCESS, fg="#FFFFFF", font=("Microsoft JhengHei UI", 10, "bold"), relief="flat", command=save_selected_images, width=28)
-save_btn.pack(side=tk.RIGHT, padx=5)
-
-tk.Label(bottom_frame, text="最終輸出資料夾完整路徑：", font=("Microsoft JhengHei UI", 9), bg=COLOR_BG, fg="#6C7570").pack(anchor="w", padx=5, pady=(4, 0))
-output_path_box = Text(bottom_frame, height=2, width=105, font=("Consolas", 9), state="disabled", bg=COLOR_CARD, fg=COLOR_TEXT, bd=1, relief="solid")
-output_path_box.pack(pady=2)
-
-window.mainloop()
+progress = tb.Progressbar(window, length=900, mode
