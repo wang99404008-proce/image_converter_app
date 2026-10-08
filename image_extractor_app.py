@@ -80,23 +80,15 @@ def choose_output_folder():
     output_path_box.config(state="disabled")
 
 def dropped_files(files):
-    """處理 windnd 拖放進來的檔案路徑（支援中文與多重編碼防護）"""
+    """處理 windnd 拖放進來的檔案路徑（支援中文 Windows gbk 編碼）"""
     if files:
-        raw_path = files[0]
-        if isinstance(raw_path, bytes):
-            # 依序嘗試系統編碼、mbcs、cp950、utf-8，確保中文字路徑絕對不會解碼失敗
-            file_path = None
-            for enc in [sys.getfilesystemencoding(), 'mbcs', 'cp950', 'utf-8']:
-                try:
-                    file_path = raw_path.decode(enc)
-                    break
-                except UnicodeDecodeError:
-                    continue
-            if not file_path:
-                file_path = raw_path.decode('utf-8', errors='ignore')
-        else:
-            file_path = str(raw_path)
-            
+        try:
+            file_path = files[0].decode('gbk')
+        except Exception:
+            try:
+                file_path = files[0].decode('utf-8')
+            except Exception:
+                file_path = str(files[0])
         set_input_file(file_path)
 
 def clear_gallery():
@@ -287,7 +279,7 @@ def save_selected_images():
     messagebox.showinfo("儲存完成", f"已成功儲存 {saved_count} 張圖片至：\n{output_folder_path}")
 
 # ==================================
-# UI 介面設計 (莫蘭迪美學 + 拖拉面板 + 自選路徑)
+# UI 介面設計
 # ==================================
 window = tb.Window(title=APP_NAME, themename="cosmo", size=(950, 930))
 window.configure(bg=COLOR_BG)
@@ -315,6 +307,7 @@ source_label.pack(anchor="w", padx=5, pady=4)
 path_display_box = Text(drop_frame, height=2, width=105, font=("Consolas", 9), state="disabled", bg=COLOR_CARD, fg=COLOR_TEXT, bd=1, relief="solid")
 path_display_box.pack(pady=2)
 
+# ⭐ 綁定到 window 確保全視窗完美接收拖放
 if HAS_DND:
     windnd.hook_dropfiles(window, func=dropped_files)
 
