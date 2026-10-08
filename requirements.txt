@@ -2,3 +2,4 @@ PyMuPDF
 Pillow
 ttkbootstrap
 pyinstaller
+windnd
