@@ -303,11 +303,11 @@ source_label.pack(anchor="w", padx=5, pady=4)
 path_display_box = Text(drop_frame, height=2, width=105, font=("Consolas", 9), state="disabled", bg=COLOR_CARD, fg=COLOR_TEXT, bd=1, relief="solid")
 path_display_box.pack(pady=2)
 
-# 正確註冊 windnd 拖拉事件
 if HAS_DND:
     windnd.hook_dropfiles(drop_frame, func=dropped_files)
 
 status_label = tk.Label(window, text="待命中", font=("Microsoft JhengHei UI", 10, "bold"), bg=COLOR_BG, fg=COLOR_SUCCESS)
 status_label.pack(pady=2)
 
-progress = tb.Progressbar(window, length=900, mode
+progress = tb.Progressbar(window, length=900, mode="determinate", bootstyle="secondary")
+progress.pack(pady=2)
