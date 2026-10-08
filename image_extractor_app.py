@@ -16,7 +16,7 @@ try:
 except ImportError:
     HAS_DND = False
 
-APP_NAME = "文件圖片網格預覽與萃取工具 (莫蘭迪自選路徑版)"
+APP_NAME = "文件圖片網格預覽與萃取工具"
 
 input_file_path = ""
 output_folder_path = ""
@@ -80,15 +80,21 @@ def choose_output_folder():
     output_path_box.config(state="disabled")
 
 def dropped_files(files):
-    """處理 windnd 拖放進來的檔案路徑（支援中文 Windows gbk 編碼）"""
+    """處理 windnd 拖放進來的檔案路徑（支援繁體中文 cp950 編碼）"""
     if files:
-        try:
-            file_path = files[0].decode('gbk')
-        except Exception:
+        raw_data = files[0]
+        if isinstance(raw_data, bytes):
+            # 優先使用繁體中文 Windows 的 cp950 進行解碼
             try:
-                file_path = files[0].decode('utf-8')
+                file_path = raw_data.decode('cp950')
             except Exception:
-                file_path = str(files[0])
+                try:
+                    file_path = raw_data.decode('utf-8')
+                except Exception:
+                    file_path = raw_data.decode('utf-8', errors='ignore')
+        else:
+            file_path = str(raw_data)
+            
         set_input_file(file_path)
 
 def clear_gallery():
@@ -285,7 +291,7 @@ window = tb.Window(title=APP_NAME, themename="cosmo", size=(950, 930))
 window.configure(bg=COLOR_BG)
 window.resizable(False, False)
 
-title_label = tk.Label(window, text="📄 文件圖片網格預覽與萃取工具 (莫蘭迪美學版)", font=("Microsoft JhengHei UI", 15, "bold"), bg=COLOR_BG, fg="#3E423F")
+title_label = tk.Label(window, text="📄 文件圖片網格預覽與萃取工具", font=("Microsoft JhengHei UI", 15, "bold"), bg=COLOR_BG, fg="#3E423F")
 title_label.pack(pady=6)
 
 # 1. 檔案拖拉面板區 (Drop Zone)
@@ -307,7 +313,6 @@ source_label.pack(anchor="w", padx=5, pady=4)
 path_display_box = Text(drop_frame, height=2, width=105, font=("Consolas", 9), state="disabled", bg=COLOR_CARD, fg=COLOR_TEXT, bd=1, relief="solid")
 path_display_box.pack(pady=2)
 
-# ⭐ 綁定到 window 確保全視窗完美接收拖放
 if HAS_DND:
     windnd.hook_dropfiles(window, func=dropped_files)
 
@@ -370,5 +375,4 @@ tk.Label(bottom_frame, text="最終輸出資料夾完整路徑：", font=("Micro
 output_path_box = Text(bottom_frame, height=2, width=105, font=("Consolas", 9), state="disabled", bg=COLOR_CARD, fg=COLOR_TEXT, bd=1, relief="solid")
 output_path_box.pack(pady=2)
 
-# ⭐ 關鍵：啟動主迴圈，讓視窗保持開啟並接收操作
 window.mainloop()
