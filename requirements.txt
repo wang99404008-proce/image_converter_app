@@ -1,4 +1,5 @@
-ttkbootstrap
 PyMuPDF
 Pillow
+ttkbootstrap
 pyinstaller
+tkinterdnd2
