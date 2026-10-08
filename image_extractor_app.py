@@ -259,82 +259,14 @@ def save_selected_images():
 
     messagebox.showinfo("儲存完成", f"已成功儲存 {saved_count} 張圖片至：\n{output_folder_path}")
 
-# ==================================
-# UI 介面設計
-# ==================================
-window = tb.Window(title=APP_NAME, themename="cosmo", size=(950, 930))
-window.configure(bg=COLOR_BG)
-window.resizable(False, False)
+folder_btn = tk.Button(out_btn_frame, text="📁 選擇輸出資料夾", bg=COLOR_CARD, fg=COLOR_TEXT, font=("Microsoft JhengHei UI", 10), relief="groove", command=choose_output_folder, width=25)
+folder_btn.pack(side=tk.LEFT, padx=5)
 
-title_label = tk.Label(window, text="📄 文件圖片網格預覽與萃取工具", font=("Microsoft JhengHei UI", 15, "bold"), bg=COLOR_BG, fg="#3E423F")
-title_label.pack(pady=6)
+save_btn = tk.Button(out_btn_frame, text="💾 儲存所有已勾選的圖片", bg=COLOR_SUCCESS, fg="#FFFFFF", font=("Microsoft JhengHei UI", 10, "bold"), relief="flat", command=save_selected_images, width=28)
+save_btn.pack(side=tk.RIGHT, padx=5)
 
-# 1. 檔案來源選擇區
-drop_frame = tk.LabelFrame(window, text=" 📁 檔案來源設定 ", bg=COLOR_DROP_BG, fg="#4A524E", font=("Microsoft JhengHei UI", 9, "bold"), padx=12, pady=10)
-drop_frame.pack(fill=tk.X, padx=25, pady=4)
+tk.Label(bottom_frame, text="最終輸出資料夾完整路徑：", font=("Microsoft JhengHei UI", 9), bg=COLOR_BG, fg="#6C7570").pack(anchor="w", padx=5, pady=(4, 0))
+output_path_box = Text(bottom_frame, height=2, width=105, font=("Consolas", 9), state="disabled", bg=COLOR_CARD, fg=COLOR_TEXT, bd=1, relief="solid")
+output_path_box.pack(pady=2)
 
-top_btn_frame = tk.Frame(drop_frame, bg=COLOR_DROP_BG)
-top_btn_frame.pack(fill=tk.X, pady=2)
-
-file_btn = tk.Button(top_btn_frame, text="📁 點擊按鈕選擇檔案 (PDF/Word/PPT)", bg=COLOR_CARD, fg=COLOR_TEXT, font=("Microsoft JhengHei UI", 10), relief="groove", command=choose_file, width=32)
-file_btn.pack(side=tk.LEFT, padx=5)
-
-scan_btn = tk.Button(top_btn_frame, text="🚀 開始萃取並顯示圖片網格", bg=COLOR_PRIMARY, fg="#FFFFFF", font=("Microsoft JhengHei UI", 10, "bold"), relief="flat", command=start_scan_thread, width=28)
-scan_btn.pack(side=tk.RIGHT, padx=5)
-
-source_label = tk.Label(drop_frame, text="尚未選擇來源檔案", font=("Microsoft JhengHei UI", 9, "bold"), bg=COLOR_DROP_BG, fg="#5A6560")
-source_label.pack(anchor="w", padx=5, pady=4)
-
-path_display_box = Text(drop_frame, height=2, width=105, font=("Consolas", 9), state="disabled", bg=COLOR_CARD, fg=COLOR_TEXT, bd=1, relief="solid")
-path_display_box.pack(pady=2)
-
-status_label = tk.Label(window, text="待命中", font=("Microsoft JhengHei UI", 10, "bold"), bg=COLOR_BG, fg=COLOR_SUCCESS)
-status_label.pack(pady=2)
-
-progress = tb.Progressbar(window, length=900, mode="determinate", bootstyle="secondary")
-progress.pack(pady=2)
-
-# 工具列：全選、取消全選、圖片數量統計
-toolbar = tk.Frame(window, bg=COLOR_BG)
-toolbar.pack(fill=tk.X, padx=25, pady=2)
-
-select_all_btn = tk.Button(toolbar, text="全選", bg=COLOR_CARD, fg=COLOR_TEXT, relief="groove", command=select_all, width=8)
-select_all_btn.pack(side=tk.LEFT, padx=3)
-
-deselect_all_btn = tk.Button(toolbar, text="取消全選", bg=COLOR_CARD, fg=COLOR_TEXT, relief="groove", command=deselect_all, width=10)
-deselect_all_btn.pack(side=tk.LEFT, padx=3)
-
-count_label = tk.Label(toolbar, text="共 0 張圖片 (已勾選: 0)", font=("Microsoft JhengHei UI", 10), bg=COLOR_BG, fg=COLOR_TEXT)
-count_label.pack(side=tk.RIGHT, padx=5)
-
-# 2. 中間可滾動的網格相簿檢視區
-gallery_outer_frame = tk.Frame(window, bg=COLOR_BG)
-gallery_outer_frame.pack(fill=tk.BOTH, expand=True, padx=25, pady=4)
-
-canvas = Canvas(gallery_outer_frame, bg=COLOR_CANVAS, highlightthickness=0)
-scrollbar = Scrollbar(gallery_outer_frame, orient="vertical", command=canvas.yview)
-
-grid_container = tk.Frame(canvas, bg=COLOR_CANVAS)
-grid_container.bind(
-    "<Configure>",
-    lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
-)
-
-canvas.create_window((0, 0), window=grid_container, anchor="nw")
-canvas.configure(yscrollcommand=scrollbar.set)
-
-def _on_mousewheel(event):
-    canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
-canvas.bind_all("<MouseWheel>", _on_mousewheel)
-
-canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-
-# 3. 下方輸出位置與儲存設定區
-bottom_frame = tk.LabelFrame(window, text=" 儲存與輸出位置設定 ", bg=COLOR_BG, fg="#5A615D", font=("Microsoft JhengHei UI", 9, "bold"), padx=10, pady=8)
-bottom_frame.pack(fill=tk.X, padx=25, pady=4)
-
-out_btn_frame = tk.Frame(bottom_frame, bg=COLOR_BG)
-out_btn_frame.pack(fill=tk.X, pady=2)
-
-folder_btn = tk.Button(out_btn_frame, text="📁
+window.mainloop()
