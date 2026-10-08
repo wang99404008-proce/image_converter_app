@@ -335,10 +335,13 @@ canvas.bind_all("<MouseWheel>", _on_mousewheel)
 canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
+# 下方輸出與儲存區
 bottom_frame = tk.LabelFrame(window, text=" 儲存輸出設定 ", bg=COLOR_BG, fg="#5A615D", font=("Microsoft JhengHei UI", 9, "bold"), padx=10, pady=10)
 bottom_frame.pack(fill=tk.X, padx=25, pady=5)
 
 save_btn = tk.Button(bottom_frame, text="💾 儲存所有已勾選的圖片", bg=COLOR_SUCCESS, fg="#FFFFFF", font=("Microsoft JhengHei UI", 10, "bold"), relief="flat", command=save_selected_images, width=32)
 save_btn.pack(pady=5)
 
-tb.Label(bottom_frame, text="最終輸出資料夾完整路徑：", font=("Microsoft JhengHei UI", 9), bootstyle="secondary").pack(anchor="w", padx=5
+tk.Label(bottom_frame, text="最終輸出資料夾完整路徑：", font=("Microsoft JhengHei UI", 9), bg=COLOR_BG, fg="#6C7570").pack(anchor="w", padx=5)
+output_path_box = Text(bottom_frame, height=2, width=105, font=("Consolas", 9), state="disabled", bg=COLOR_CARD, fg=COLOR_TEXT, bd=1, relief="solid")
+output_path_box.pack(pady=4)
