@@ -80,9 +80,23 @@ def choose_output_folder():
     output_path_box.config(state="disabled")
 
 def dropped_files(files):
-    """處理 windnd 拖放進來的檔案路徑"""
+    """處理 windnd 拖放進來的檔案路徑（支援中文與多重編碼防護）"""
     if files:
-        file_path = files[0].decode('utf-8') if isinstance(files[0], bytes) else files[0]
+        raw_path = files[0]
+        if isinstance(raw_path, bytes):
+            # 依序嘗試系統編碼、mbcs、cp950、utf-8，確保中文字路徑絕對不會解碼失敗
+            file_path = None
+            for enc in [sys.getfilesystemencoding(), 'mbcs', 'cp950', 'utf-8']:
+                try:
+                    file_path = raw_path.decode(enc)
+                    break
+                except UnicodeDecodeError:
+                    continue
+            if not file_path:
+                file_path = raw_path.decode('utf-8', errors='ignore')
+        else:
+            file_path = str(raw_path)
+            
         set_input_file(file_path)
 
 def clear_gallery():
